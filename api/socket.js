@@ -5,29 +5,30 @@ const cors = require('cors');
 
 // Create Express app and HTTP server ONCE when the module loads
 const app = express();
-const server = http.createServer(app);
+const server = http.createServer(app); // Socket.IO needs an http.Server instance
 
-// Configure CORS for Express app (applies to any HTTP routes if defined on 'app')
-app.use(cors({
-    origin: "*", // IMPORTANT: In production, restrict this to your Vercel frontend URL
-    methods: ["GET", "POST"]
-}));
-
-// Initialize Socket.IO and attach it to the HTTP server
+// Configure CORS for Socket.IO server
 const io = new Server(server, {
   cors: {
-    origin: "*", // IMPORTANT: In production, restrict this to your Vercel frontend URL
+    origin: "*", // IMPORTANT: Restrict in production (e.g., "https://my-wordle-nine.vercel.app")
     methods: ["GET", "POST"]
   },
-  // Ensure Socket.IO uses a path that Vercel routes correctly. Default is /socket.io/
-  // path: '/socket.io/', // Usually not needed if using default and vercel.json is correct
+  // It's often good to explicitly match the path if Vercel's routing is tricky
+  // path: '/socket.io/', // This is the default, so usually not needed if vercel.json is correct
 });
+
+// Optional: If you want Express to handle any non-Socket.IO GET requests to /api/socket
+// (e.g., a health check)
+app.get('/', (req, res) => {
+  res.setHeader('Content-Type', 'text/plain');
+  res.status(200).send('Socket.IO server endpoint is running. Connect via WebSocket client.');
+});
+
 
 // --- Word List for the Server ---
 const SGB_WORDS = [
     "cigar","rebut","sissy","humph","awake","blush","focal","evade","naval","serve","heath","dwarf","model","karma","stink","grade","quiet","bench","abate","feign","major","death","fresh","crust","stool","colon","abase","marry","react","batty","pride","floss","helix","croak","staff","paper","unfed","whelp","trawl","outdo","adobe","crazy","sower","repay","digit","crate","cluck","spike","mimic","pound","maxim","linen","unmet","flesh","booby","forth","first","stand","belly","ivory","seedy","print","yearn","drain","bribe","stout","panel","crass","flume","offal","agree","error","swirl","argue","bleed","delta","flick","totem","wooer","front","shrub","parry","biome","lapel","start","greet","goner","golem","lusty","loopy","round","audit","lying","gamma","labor","islet","civic","forge","corny","moult","basic","salad","agate","spicy","spray","essay","fjord","spend","kebab","guild","aback","motor","alone","hatch","hyper","thumb","dowry","ought","belch","dutch","pilot","tweed","comet","jaunt","enema","steed","abyss","growl","fling","dozen","boozy","erode","world","gouge","click","briar","great","altar","pulpy","blurt","coast","duchy","groin","fixer","group","rogue","badly","smart","pithy","gaudy","chill","heron","vodka","finer","surer","radio","rouge","perch","retch","wrote","clock","tilde","store","prove","bring","solve","cheat","grime","exult","usher","epoch","triad","break","rhino","viral","conic","masse","sonic","vital","trace","using","peach","champ","baton","brake","pluck","craze","gripe","weary","picky","acute","ferry","aside","tapir","troll","unify","rebus","boost","truss","siege","tiger","banal","slump","crank","gorge","query","drink","favor","abbey","tangy","panic","solar","shire","proxy","point","robot","prick","wince","crimp","knoll","sugar","whack","mount","perky","could","wrung","light","those","moist","shard","pleat","aloft","skill","elder","frame","humor","pause","ulcer","ultra","robin","cynic","agora","twirl","sound","overt","plant","lager","scary","sequel","meter","buddy","quack","saute","lyric","ascot","flack","fleek","stung", "broke", "twang", "fling", "swill", "birch", "woozy"
 ].map(word => word.toLowerCase());
-
 
 // --- In-memory data stores (Limitations apply for serverless) ---
 let searchingPlayers = [];
@@ -73,7 +74,6 @@ io.on("connection", (socket) => {
       return;
     }
     
-    // Remove if already in searchingPlayers (e.g. due to client refresh while searching)
     searchingPlayers = searchingPlayers.filter(p => p.id !== socket.id);
     searchingPlayers.push(socket);
 
@@ -81,17 +81,14 @@ io.on("connection", (socket) => {
       const player1Socket = searchingPlayers.shift();
       const player2Socket = searchingPlayers.shift();
 
-      // Ensure sockets are still valid (not disconnected while in queue)
       if (!player1Socket || !player1Socket.connected || !player2Socket || !player2Socket.connected) {
         console.log("One or more players disconnected while in queue. Returning remaining to queue if any.");
         if (player1Socket && player1Socket.connected) searchingPlayers.unshift(player1Socket);
         if (player2Socket && player2Socket.connected) searchingPlayers.unshift(player2Socket);
-        // Notify remaining players if they were returned to queue
         if (player1Socket && player1Socket.connected && !searchingPlayers.find(p=>p.id === player1Socket.id)) player1Socket.emit("waitingForOpponent");
         if (player2Socket && player2Socket.connected && !searchingPlayers.find(p=>p.id === player2Socket.id)) player2Socket.emit("waitingForOpponent");
         return;
       }
-
 
       const roomId = `room-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
       const secretWord = selectRandomWord();
@@ -149,8 +146,6 @@ io.on("connection", (socket) => {
       if (opponent && opponent.socket && opponent.socket.connected) {
         opponent.socket.emit("gameOver", { result: "lose", word: room.word, message: `${player.name} finished first in ${attempts} tries!` });
       }
-      // Consider cleaning up the room after a short delay
-      // setTimeout(() => delete gameRooms[roomId], 60000); // Clean up room after 1 minute
     }
   });
 
@@ -169,19 +164,17 @@ io.on("connection", (socket) => {
       const opponent = room.players.find(p => p.id !== socket.id);
 
       if (opponent && opponent.finished) {
-        if (!room.winnerName) {
+        if (!room.winnerName) { // Only declare draw if no one has won yet
             room.status = 'finished';
+            // Emit to the room so both players get the draw message
             io.to(roomId).emit("gameOver", { result: "draw", word: room.word, message: "Neither of you got the word! It's a draw." });
-            // setTimeout(() => delete gameRooms[roomId], 60000);
         }
       } else if (opponent && opponent.socket && opponent.socket.connected) {
         socket.emit("waitingForOpponentFinish", { word: room.word, message: "You didn't get it. Waiting for opponent..." });
         opponent.socket.emit("opponentUpdate", { message: `${player.name} has used all their attempts.` });
-      } else if (!opponent || !opponent.socket || !opponent.socket.connected) { 
-        // Opponent disconnected or invalid, this player essentially "draws" alone
+      } else if (!opponent || !(opponent.socket && opponent.socket.connected)) { 
         socket.emit("gameOver", { result: "draw", word: room.word, message: "You didn't get the word, and opponent is unavailable." });
         room.status = 'finished';
-        // setTimeout(() => delete gameRooms[roomId], 60000);
       }
     }
   });
@@ -204,27 +197,33 @@ io.on("connection", (socket) => {
           updateLeaderboard(opponent.name);
           opponent.socket.emit("gameOver", { result: "win", word: room.word, message: `${disconnectedPlayer.name} disconnected. You win!` });
         }
-        // setTimeout(() => delete gameRooms[roomId], 60000); // Clean up room
       }
       console.log(`Player ${socket.playerName || socket.id} disconnected from room ${roomId}.`);
+      // Consider how to handle gameRooms cleanup for finished/abandoned rooms
+      // For now, they stay in memory. A better solution would involve TTL or explicit cleanup.
     }
   });
 });
 
 
 // --- Vercel Serverless Function Handler ---
-// The `server` instance (with Socket.IO attached) is already created globally.
-// Vercel will invoke this exported function for requests to /api/socket.js
-// (and requests to /socket.io/... due to the rewrite rule in vercel.json).
-// The Express app (`app`) will then route the request, and Socket.IO will
-// handle its specific handshake/communication if the request is for /socket.io/.
-module.exports = app;
+// This single export will be used by Vercel to handle incoming requests
+// to /api/socket.js (and those rewritten from /socket.io/...).
+// The `server` object (which `io` is attached to, and `app` uses) will handle them.
+module.exports = (req, res) => {
+  // This pattern ensures that the original HTTP server (which Socket.IO is attached to)
+  // handles the request. Socket.IO will intercept its specific handshake requests.
+  // Any other HTTP requests to /api/socket (if `app.get`, `app.post` routes were defined)
+  // would be handled by Express.
+  server.emit('request', req, res); 
+};
 
 
-// --- Local Development Startup ---
+// --- Local Development Startup (This part should NOT run on Vercel) ---
 const IS_LOCAL_DEV = process.env.NODE_ENV !== 'production' && !process.env.VERCEL && !process.env.VERCEL_ENV;
 if (IS_LOCAL_DEV) {
     const PORT = process.env.PORT || 3001;
+    // We call listen on the 'server' instance that Socket.IO is attached to
     server.listen(PORT, () => {
         console.log(`DEVELOPMENT Socket.IO server listening on http://localhost:${PORT}`);
     });
