@@ -1,9 +1,9 @@
+// public/script.js
 document.addEventListener('DOMContentLoaded', () => {
     // DOM Elements
     const gameBoardElement = document.getElementById('game-board');
     const keyboardContainer = document.getElementById('keyboard');
     const errorMessageElement = document.getElementById('error-message');
-    // const retryFetchButton = document.getElementById('retry-fetch-button'); // Not used in multiplayer focus
     
     const gameOverModal = document.getElementById('game-over-modal');
     const gameOverTitle = document.getElementById('game-over-title');
@@ -12,14 +12,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const playAgainButton = document.getElementById('play-again-button'); // For solo play
     const findNewGameModalButton = document.getElementById('find-new-game-modal-button');
 
-
     const themeToggleButton = document.getElementById('theme-toggle');
 
     // Single Player Stats display elements
+    const statsDisplayDiv = document.getElementById('stats-display');
     const gamesPlayedStat = document.getElementById('games-played-stat');
     const winPercentageStat = document.getElementById('win-percentage-stat');
-    // const currentStreakStat = document.getElementById('current-streak-stat'); // Simpler stats for modal
-    // const maxStreakStat = document.getElementById('max-streak-stat');
 
     // Multiplayer UI Elements
     const playerNameInput = document.getElementById('player-name-input');
@@ -30,17 +28,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Game Constants
     const WORD_LENGTH = 5;
     const MAX_ATTEMPTS = 6;
-    // Fallback words for solo mode if needed, multiplayer word comes from server
-    const FALLBACK_WORDS = ["apple", "table", "chair", "grape", "house", "mouse", "light", "dream", "audio"];
+    const FALLBACK_WORDS = ["apple", "table", "chair", "grape", "house", "mouse", "light", "dream", "audio", "world", "power", "gamer", "solve", "stone", "crane"];
 
 
     // Game State (local game)
-    let secretWord = ''; // Will be set by server in multiplayer
+    let secretWord = '';
     let currentAttempt = 0;
     let currentRow = 0;
     let currentGuess = [];
-    let isGameOver = true; // Game starts as "over" until a mode is chosen or game starts
-    let letterStates = {}; // For keyboard colors
+    let isGameOver = true; 
+    let letterStates = {};
     let errorTimeout;
 
     // Multiplayer State
@@ -50,8 +47,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentRoomId = null;
     let isMultiplayerGameActive = false;
 
-    // --- SINGLE PLAYER GAME LOGIC (for "Play Solo Again") ---
+    // --- SINGLE PLAYER GAME LOGIC ---
     function initializeSoloGame() {
+        console.log("Initializing Solo Game Mode");
         isMultiplayerGameActive = false;
         isGameOver = false;
         currentAttempt = 0;
@@ -69,48 +67,62 @@ document.addEventListener('DOMContentLoaded', () => {
         createGameBoard();
         resetKeyboardColors();
         updateGameBoard();
-        updateLocalStatsDisplay(); // Display local stats
+        updateLocalStatsDisplay();
+        
         gameStatusDisplay.textContent = "Playing Solo Mode.";
         findGameButton.disabled = false;
         gameBoardElement.classList.remove('waiting-opponent');
         keyboardContainer.classList.remove('waiting-opponent');
-        document.getElementById('stats-display').classList.remove('hidden'); // Show solo stats
-        findNewGameModalButton.classList.add('hidden');
+        
+        statsDisplayDiv.classList.remove('hidden'); // Show solo stats
+        findNewGameModalButton.classList.add('hidden'); // Hide find new 1v1
+        playAgainButton.classList.remove('hidden'); // Show play solo again
     }
 
     function processSoloGuess() {
         if (isGameOver || currentGuess.length !== WORD_LENGTH) return;
-        // Basic validation (can be expanded if you have a local dictionary for solo)
         const guessString = currentGuess.join('');
 
-        // Feedback logic (same as original Wordle)
+        // Basic client-side validation (can be expanded if you have a local dictionary for solo)
+        // For now, just check length which is already done.
+
         const guessArray = guessString.split('');
         const secretArray = secretWord.split('');
         const feedback = new Array(WORD_LENGTH).fill(null);
         const tempSecret = [...secretArray];
         const rowTiles = gameBoardElement.children[currentRow].children;
 
+        // First pass for 'correct'
         for (let i = 0; i < WORD_LENGTH; i++) {
             if (guessArray[i] === tempSecret[i]) {
-                feedback[i] = 'correct'; updateKeyboard(guessArray[i], 'correct'); tempSecret[i] = null;
+                feedback[i] = 'correct'; 
+                updateKeyboard(guessArray[i], 'correct'); 
+                tempSecret[i] = null;
             }
         }
+        // Second pass for 'present' and 'absent'
         for (let i = 0; i < WORD_LENGTH; i++) {
-            if (feedback[i] === null) {
+            if (feedback[i] === null) { // Only if not already correct
                 const letterIndexInSecret = tempSecret.indexOf(guessArray[i]);
                 if (letterIndexInSecret !== -1) {
-                    feedback[i] = 'present'; updateKeyboard(guessArray[i], 'present'); tempSecret[letterIndexInSecret] = null;
+                    feedback[i] = 'present'; 
+                    updateKeyboard(guessArray[i], 'present'); 
+                    tempSecret[letterIndexInSecret] = null;
                 } else {
-                    feedback[i] = 'absent'; updateKeyboard(guessArray[i], 'absent');
+                    feedback[i] = 'absent'; 
+                    updateKeyboard(guessArray[i], 'absent');
                 }
             }
         }
-        applyFeedbackToTiles(rowTiles, guessArray, feedback); // Extracted to a function
+        applyFeedbackToTiles(rowTiles, guessArray, feedback);
         currentAttempt++;
 
         if (guessString === secretWord) {
             updateLocalStats(true);
-            setTimeout(() => showSoloGameOver(true), WORD_LENGTH * 250 + 300);
+            if (gameBoardElement.children[currentRow]) {
+                 gameBoardElement.children[currentRow].classList.add('winning-row');
+            }
+            setTimeout(() => showSoloGameOver(true), WORD_LENGTH * 250 + 500); // Delay for animation
             return;
         }
         if (currentAttempt >= MAX_ATTEMPTS) {
@@ -118,13 +130,15 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => showSoloGameOver(false), WORD_LENGTH * 250 + 300);
             return;
         }
-        currentRow++; currentGuess = [];
+        currentRow++; 
+        currentGuess = [];
     }
     
     function showSoloGameOver(isWin) {
         isGameOver = true;
-        findGameButton.disabled = false; // Re-enable find game after solo game
-        document.getElementById('stats-display').classList.remove('hidden');
+        findGameButton.disabled = false; 
+        
+        statsDisplayDiv.classList.remove('hidden');
         findNewGameModalButton.classList.add('hidden');
         playAgainButton.classList.remove('hidden');
 
@@ -140,38 +154,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- MULTIPLAYER LOGIC ---
     function setupMultiplayer() {
-        // Connect to the server; Vercel handles URL with relative path if served from same origin.
-        // For local dev, if server is on different port: io('http://localhost:3001')
-        socket = io({
-            reconnectionAttempts: 5, // Try to reconnect a few times
-            reconnectionDelay: 2000,  // Delay between attempts
+        const IS_LOCALHOST = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const socketURL = IS_LOCALHOST ? 'http://localhost:3001' : undefined;
+
+        console.log(`Attempting to connect to Socket.IO server at: ${socketURL || window.location.origin}`);
+
+        socket = io(socketURL, {
+            reconnectionAttempts: 5,
+            reconnectionDelay: 3000,
+            timeout: 20000,
         }); 
 
         socket.on("connect", () => {
-            console.log("Connected to server with ID:", socket.id);
-            gameStatusDisplay.textContent = "Connected. Enter name & find game!";
+            console.log("Successfully connected to server with ID:", socket.id);
+            gameStatusDisplay.textContent = "Connected! Enter name & find a game.";
             findGameButton.disabled = false;
         });
         
         socket.on("connect_error", (err) => {
-            console.error("Connection Error:", err.message);
-            gameStatusDisplay.textContent = "Connection failed. Trying to reconnect...";
-            // findGameButton.disabled = true; // Keep disabled or handle UI appropriately
+            console.error("Connection Error:", err.message, err.cause ? err.cause : '');
+            gameStatusDisplay.textContent = `Connection failed. Server might be down.`;
+            findGameButton.disabled = true; // Disable if connection fails critically
         });
         
         socket.on("disconnect", (reason) => {
             console.log("Disconnected from server:", reason);
             gameStatusDisplay.textContent = "Disconnected. Check connection.";
-            findGameButton.disabled = true; // Or re-enable to try connecting again via findGame click
+            findGameButton.disabled = true; 
             if (isMultiplayerGameActive) {
-                // Handle abrupt disconnection during a game
                 showError("Lost connection to the game server.");
                 isGameOver = true;
-                gameBoardElement.classList.add('waiting-opponent'); // Visually indicate issue
+                gameBoardElement.classList.add('waiting-opponent');
                 keyboardContainer.classList.add('waiting-opponent');
             }
         });
-
 
         findGameButton.addEventListener('click', () => {
             myPlayerName = playerNameInput.value.trim();
@@ -181,24 +197,31 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             localStorage.setItem('wordlePlayerName', myPlayerName);
 
-            socket.emit("findGame", myPlayerName);
-            gameStatusDisplay.textContent = "Searching for an opponent...";
-            findGameButton.disabled = true;
-            isGameOver = true; // Prevent local play while searching
-            gameBoardElement.classList.add('waiting-opponent');
-            keyboardContainer.classList.add('waiting-opponent');
-            hideGameOver(); // Hide any previous modal
+            if (socket && socket.connected) {
+                socket.emit("findGame", myPlayerName);
+                gameStatusDisplay.textContent = `Hi ${myPlayerName}! Searching for an opponent...`;
+                findGameButton.disabled = true;
+                isGameOver = true; 
+                gameBoardElement.classList.add('waiting-opponent');
+                keyboardContainer.classList.add('waiting-opponent');
+                hideGameOver(); 
+            } else {
+                showError("Not connected to server. Please wait or refresh.");
+            }
         });
         
         findNewGameModalButton.addEventListener('click', () => {
             hideGameOver();
-            findGameButton.click(); // Trigger the find game logic
+            if (socket && socket.connected) {
+                findGameButton.click(); 
+            } else {
+                 showError("Not connected. Cannot find new game.");
+            }
         });
-
 
         socket.on("alreadyInGameOrSearching", (data) => {
             showTemporaryMessage(data.message, false);
-            findGameButton.disabled = false; // Allow to try again if they somehow got here
+            findGameButton.disabled = false; 
             gameBoardElement.classList.remove('waiting-opponent');
             keyboardContainer.classList.remove('waiting-opponent');
         });
@@ -211,9 +234,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         socket.on("gameStarted", (data) => {
             currentRoomId = data.roomId;
-            secretWord = data.word; // Server provides the word
-            myPlayerName = data.myName; // Use name confirmed by server
-            gameStatusDisplay.textContent = `Matched with ${data.opponentName}! Word set. Good luck!`;
+            secretWord = data.word; 
+            myPlayerName = data.myName; 
+            gameStatusDisplay.textContent = `Matched with ${data.opponentName}! Word is set. Good luck!`;
             console.log(`MP Game Start! Room: ${data.roomId}, Word: ${secretWord}, MyName: ${myPlayerName}, Opponent: ${data.opponentName}`);
             
             isMultiplayerGameActive = true;
@@ -235,7 +258,8 @@ document.addEventListener('DOMContentLoaded', () => {
             findGameButton.disabled = true;
             gameBoardElement.classList.remove('waiting-opponent');
             keyboardContainer.classList.remove('waiting-opponent');
-            document.getElementById('stats-display').classList.add('hidden'); // Hide solo stats
+            
+            statsDisplayDiv.classList.add('hidden'); 
             findNewGameModalButton.classList.remove('hidden');
             playAgainButton.classList.add('hidden');
         });
@@ -247,42 +271,46 @@ document.addEventListener('DOMContentLoaded', () => {
             gameBoardElement.classList.remove('waiting-opponent');
             keyboardContainer.classList.remove('waiting-opponent');
             
-            document.getElementById('stats-display').classList.add('hidden'); // Hide solo stats
-            findNewGameModalButton.classList.remove('hidden'); // Show find new 1v1 game
-            playAgainButton.classList.add('hidden'); // Hide play solo again
+            statsDisplayDiv.classList.add('hidden'); 
+            findNewGameModalButton.classList.remove('hidden'); 
+            playAgainButton.classList.add('hidden'); 
 
             gameOverModal.classList.remove('hidden');
             gameOverModal.classList.add('flex');
             gameOverTitle.textContent = data.result === "win" ? "VICTORY!" : (data.result === "lose" ? "DEFEAT!" : "IT'S A DRAW!");
             gameOverMessage.textContent = data.message;
             secretWordReveal.textContent = `The word was: ${data.word.toUpperCase()}`;
-            if (data.result === "win" && gameBoardElement.children[currentRow]) { // If player won, animate their row
-                gameBoardElement.children[currentRow].classList.add('winning-row');
+            
+            // Animate winning row only if this client won and the row exists
+            if (data.result === "win" && gameBoardElement.children[currentRow]) { 
+                 // Ensure currentRow is correct for the winning guess
+                const winningRowIndex = currentAttempt -1; // if currentAttempt was incremented after win
+                if (gameBoardElement.children[winningRowIndex]) {
+                     gameBoardElement.children[winningRowIndex].classList.add('winning-row');
+                }
             }
         });
         
         socket.on("waitingForOpponentFinish", (data) => {
-            isGameOver = true; // Can't play anymore
+            isGameOver = true; 
             gameStatusDisplay.textContent = data.message;
-            showTemporaryMessage(data.message, false); // Show it also as a temp message
+            showTemporaryMessage(data.message, false); 
             
             gameBoardElement.classList.add('waiting-opponent');
             keyboardContainer.classList.add('waiting-opponent');
-            // Optionally reveal word if game is effectively over for this player
-            // secretWordReveal.textContent = `The word was: ${data.word.toUpperCase()}`;
+            // Don't reveal word here, gameOver event will do that.
         });
 
-        socket.on("opponentUpdate", (data) => { // e.g. opponent failed
-            showTemporaryMessage(data.message, false); // Info type
+        socket.on("opponentUpdate", (data) => { 
+            showTemporaryMessage(data.message, false); 
         });
-
 
         socket.on("leaderboardUpdate", (newLeaderboard) => {
-            leaderboardList.innerHTML = ''; // Clear previous
+            leaderboardList.innerHTML = ''; 
             if (newLeaderboard && newLeaderboard.length > 0) {
                 newLeaderboard.forEach((p, index) => {
                     const li = document.createElement('li');
-                    li.className = "flex justify-between";
+                    li.className = "flex justify-between py-0.5";
                     const rankName = document.createElement('span');
                     rankName.textContent = `${index + 1}. ${p.name}`;
                     const score = document.createElement('span');
@@ -293,7 +321,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     leaderboardList.appendChild(li);
                 });
             } else {
-                leaderboardList.innerHTML = '<li class="text-gray-400">Leaderboard is empty or loading...</li>';
+                leaderboardList.innerHTML = '<li class="text-gray-400 italic">Leaderboard is empty.</li>';
             }
         });
     }
@@ -304,9 +332,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function applyFeedbackToTiles(rowTiles, guessArray, feedback) {
         for (let i = 0; i < WORD_LENGTH; i++) {
             const tileContainer = rowTiles[i];
+            if (!tileContainer) continue; // Safety check
             const backFace = tileContainer.querySelector('.back');
-            const letter = guessArray[i];
+            if (!backFace) continue; // Safety check
 
+            const letter = guessArray[i];
             backFace.textContent = letter.toUpperCase();
             backFace.classList.remove('tile-correct', 'tile-present', 'tile-absent');
 
@@ -315,37 +345,37 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (feedback[i] === 'present') feedbackClass = 'tile-present';
             else feedbackClass = 'tile-absent';
 
-            backFace.classList.add(feedbackClass);
+            if(feedbackClass) backFace.classList.add(feedbackClass);
 
             setTimeout(() => {
                 tileContainer.classList.add('flip');
                 tileContainer.classList.remove('tile-filled', 'tile-empty', 'pop-animate');
-                tileContainer.classList.add(feedbackClass);
-            }, i * 250);
+                if(feedbackClass) tileContainer.classList.add(feedbackClass);
+            }, i * 250); // Stagger animation
         }
     }
 
-    function processCurrentGuess() { // Decides if it's solo or MP
+    function processCurrentGuess() {
         if (isGameOver || currentGuess.length !== WORD_LENGTH) return;
 
         if (isMultiplayerGameActive) {
-            // In multiplayer, client still does local validation for UX, then server confirms win/loss
             const guessString = currentGuess.join('');
-             // No local dictionary check needed for MP, server is authority for word list.
-             // Client only checks length for now.
-
             // Local feedback for UI
             const guessArray = guessString.split('');
-            const secretArray = secretWord.split(''); // secretWord is from server
+            const secretArray = secretWord.split(''); 
             const feedback = new Array(WORD_LENGTH).fill(null);
             const tempSecret = [...secretArray];
-            const rowTiles = gameBoardElement.children[currentRow].children;
+            const rowTiles = gameBoardElement.children[currentRow]?.children;
 
+            if (!rowTiles) return; // Row doesn't exist
+
+            // First pass for 'correct'
             for (let i = 0; i < WORD_LENGTH; i++) {
                 if (guessArray[i] === tempSecret[i]) {
                     feedback[i] = 'correct'; updateKeyboard(guessArray[i], 'correct'); tempSecret[i] = null;
                 }
             }
+            // Second pass for 'present' and 'absent'
             for (let i = 0; i < WORD_LENGTH; i++) {
                 if (feedback[i] === null) {
                     const letterIndexInSecret = tempSecret.indexOf(guessArray[i]);
@@ -357,35 +387,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             applyFeedbackToTiles(rowTiles, guessArray, feedback);
-            currentAttempt++;
+            currentAttempt++; // Increment attempt *after* processing the guess for UI
 
             if (guessString === secretWord) {
                 socket.emit("iWon", { attempts: currentAttempt });
-                isGameOver = true; // Prevent further input while waiting for server confirmation
-                gameStatusDisplay.textContent = "Correct! Waiting for server confirmation...";
+                isGameOver = true; 
+                gameStatusDisplay.textContent = "Correct! Waiting for server...";
             } else if (currentAttempt >= MAX_ATTEMPTS) {
                 socket.emit("allAttemptsUsed", { attempts: currentAttempt });
-                isGameOver = true; // Prevent further input
+                isGameOver = true; 
                 gameStatusDisplay.textContent = "Out of attempts. Waiting for server...";
             } else {
                 currentRow++;
                 currentGuess = [];
             }
         } else {
-            processSoloGuess(); // Fallback to solo game logic
+            processSoloGuess(); 
         }
     }
 
-
     function handleKeyPress(key) {
-        if (isGameOver && !isMultiplayerGameActive) { // Allow typing if MP game active but local isGameOver (e.g. waiting)
-             if (!isMultiplayerGameActive || (isMultiplayerGameActive && gameBoardElement.classList.contains('waiting-opponent'))) return;
+        if (isGameOver && !(isMultiplayerGameActive && !gameBoardElement.classList.contains('waiting-opponent') && !gameOverModal.classList.contains('flex'))) {
+            // If game is over, generally block input
+            // Exception: if it's an MP game, not waiting for opponent, and modal isn't shown (i.e., player can still type)
+            if (!isMultiplayerGameActive) return; // Definitely block if solo and over
+            if (isMultiplayerGameActive && (gameBoardElement.classList.contains('waiting-opponent') || gameOverModal.classList.contains('flex'))) return; // Block if MP and waiting or modal shown
         }
-        if(isGameOver && isMultiplayerGameActive && gameBoardElement.classList.contains('waiting-opponent')) return;
 
 
         key = key.toLowerCase();
-        // Clear temporary error messages
         if (errorMessageElement.classList.contains('show') && !errorMessageElement.textContent.includes('Connection')) {
              clearError();
         }
@@ -405,7 +435,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (key.length === 1 && key >= 'a' && key <= 'z') {
             if (currentGuess.length < WORD_LENGTH) {
                 currentGuess.push(key);
-                updateGameBoard(true); // letterAdded = true
+                updateGameBoard(true); 
             }
         }
     }
@@ -428,12 +458,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateGameBoard(letterAdded = false) {
-        const currentRowTiles = gameBoardElement.children[currentRow]?.children;
-        if (!currentRowTiles) return;
+        const currentRowElement = gameBoardElement.children[currentRow];
+        if (!currentRowElement) return; // Current row might not exist if game just ended
+        const currentRowTiles = currentRowElement.children;
 
         for (let j = 0; j < WORD_LENGTH; j++) {
             const tileContainer = currentRowTiles[j];
+            if (!tileContainer) continue; // Safety
+
             const frontFace = tileContainer.querySelector('.front');
+            if (!frontFace) continue; // Safety
+
             tileContainer.classList.remove('pop-animate');
 
             if (j < currentGuess.length) {
@@ -448,12 +483,15 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 frontFace.textContent = '';
                 tileContainer.classList.remove('tile-filled', 'pop-animate');
-                tileContainer.classList.add('tile-empty');
+                if (!tileContainer.classList.contains('flip')) { // Don't revert if already flipped
+                    tileContainer.classList.add('tile-empty');
+                     // Clear feedback classes if resetting for new input in current row before flip
+                    tileContainer.classList.remove('tile-correct', 'tile-present', 'tile-absent');
+                }
             }
-            if (!tileContainer.classList.contains('tile-correct') &&
-                !tileContainer.classList.contains('tile-present') &&
-                !tileContainer.classList.contains('tile-absent')) {
-                tileContainer.classList.remove('flip');
+            // If tile is not part of current guess and not flipped, ensure no feedback classes
+            if (j >= currentGuess.length && !tileContainer.classList.contains('flip')) {
+                tileContainer.classList.remove('tile-correct', 'tile-present', 'tile-absent');
             }
         }
     }
@@ -470,12 +508,18 @@ document.addEventListener('DOMContentLoaded', () => {
             rowDiv.className = 'flex justify-center mb-1 w-full';
             rowKeys.forEach(key => {
                 const keyButton = document.createElement('button');
-                keyButton.className = 'key flex-1 sm:flex-grow-0'; // Allow flex-1 for smaller screens
-                if (key === 'enter' || key === 'backspace') {
-                    keyButton.classList.add('special-key'); keyButton.style.flexGrow = "1.5";
+                // Adjusted flex classes for better key sizing
+                keyButton.className = 'key flex-1 h-12 mx-0.5 sm:flex-none sm:mx-1'; 
+                if (key.length > 1) { // Enter, Backspace
+                    keyButton.classList.add('special-key', 'px-3', 'sm:px-4');
+                    keyButton.style.flexGrow = "1.5"; // Allow special keys to be wider
+                } else {
+                    keyButton.classList.add('px-2', 'sm:px-3'); // Regular keys
                 }
-                if (key === 'backspace') keyButton.innerHTML = '&#9003;';
+
+                if (key === 'backspace') keyButton.innerHTML = '&#9003;'; // Icon for backspace
                 else keyButton.textContent = key.toUpperCase();
+                
                 keyButton.dataset.key = key;
                 keyButton.addEventListener('click', () => handleKeyPress(key));
                 rowDiv.appendChild(keyButton);
@@ -520,24 +564,26 @@ document.addEventListener('DOMContentLoaded', () => {
         errorMessageElement.classList.add('show');
 
         errorTimeout = setTimeout(() => {
-            // CSS handles fade out
+            if(errorMessageElement.textContent === message) { // only clear if it's still the same message
+                 errorMessageElement.classList.remove('show'); // Animation handles fade out
+            }
         }, 2500);
     }
     
-    function showError(message) { // For more persistent UI errors not tied to server messages
+    function showError(message) { 
         clearTimeout(errorTimeout);
         errorMessageElement.textContent = message;
         const isLightMode = document.body.classList.contains('light-mode');
         errorMessageElement.className = isLightMode ? 'error-text-light' : 'error-text-dark';
-        errorMessageElement.classList.add('show'); // Make it show with animation
-        // No auto-hide for this type of error, user action or new state should clear it.
+        errorMessageElement.classList.add('show'); 
+        errorMessageElement.style.opacity = '1'; 
     }
 
     function clearError() {
         clearTimeout(errorTimeout);
         errorMessageElement.textContent = '';
         errorMessageElement.className = '';
-        errorMessageElement.style.opacity = '0'; // Ensure hidden
+        errorMessageElement.style.opacity = '0';
     }
 
     function shakeCurrentRow() {
@@ -559,10 +605,9 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('theme', isLight ? 'light' : 'dark');
         themeToggleButton.textContent = isLight ? 'Dark Mode' : 'Light Mode';
         if (errorMessageElement.textContent && !errorMessageElement.classList.contains('show') && !errorMessageElement.textContent.includes('Connection')) {
-             // Re-apply message style if it was persistent
              const isError = errorMessageElement.classList.contains('error-text-dark') || errorMessageElement.classList.contains('error-text-light');
              errorMessageElement.className = isLight ? (isError ? 'error-text-light' : 'info-text-light') : (isError ? 'error-text-dark' : 'info-text-dark');
-             errorMessageElement.style.opacity = '1'; // Ensure visible
+             errorMessageElement.style.opacity = '1';
         }
     }
 
@@ -573,7 +618,7 @@ document.addEventListener('DOMContentLoaded', () => {
         themeToggleButton.textContent = document.body.classList.contains('light-mode') ? 'Dark Mode' : 'Light Mode';
     }
 
-    // --- Local Stats for Solo Play ---
+    // Local Stats for Solo Play
     let localStats = { gamesPlayed: 0, wins: 0 };
     function loadLocalStats() {
         const stored = localStorage.getItem('wordleSoloStats');
@@ -593,18 +638,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Event Listeners
-    playAgainButton.addEventListener('click', initializeSoloGame); // Solo play
-
+    playAgainButton.addEventListener('click', initializeSoloGame);
     themeToggleButton.addEventListener('click', toggleTheme);
 
     document.addEventListener('keydown', (event) => {
-        if (gameOverModal.classList.contains('hidden')) { // Only process game input if main modal not shown
+        if (gameOverModal.classList.contains('hidden')) {
             handleKeyPress(event.key);
         } else if (event.key === 'Enter' && !gameOverModal.classList.contains('hidden')) {
-            // If modal is shown, Enter might trigger "Find New 1v1 Game" or "Play Solo Again"
-            if (isMultiplayerGameActive || findNewGameModalButton.classList.contains('hidden') === false) { //If it was a MP game or that button is visible
+            if (!findNewGameModalButton.classList.contains('hidden')) {
                 findNewGameModalButton.click();
-            } else {
+            } else if (!playAgainButton.classList.contains('hidden')) {
                 playAgainButton.click();
             }
         }
@@ -612,13 +655,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial Setup
     applyStoredTheme();
-    loadLocalStats(); // Load solo stats
+    loadLocalStats(); 
     updateLocalStatsDisplay();
-    createKeyboard(); // Create keyboard once
-    setupMultiplayer(); // Initialize Socket.IO connection and listeners
+    createKeyboard(); 
+    setupMultiplayer(); 
     
-    // Default to solo game initially, or wait for user action
-    // initializeSoloGame(); // Or leave blank until user clicks "Play Solo" or "Find Game"
-    gameStatusDisplay.textContent = "Enter name & find a 1v1 game, or play solo.";
     createGameBoard(); // Create an empty board at start
+    gameStatusDisplay.textContent = "Enter name & find a 1v1 game, or play solo below.";
+    // Optionally, uncomment to start a solo game by default:
+    // initializeSoloGame(); 
 });

@@ -3,30 +3,36 @@ const http = require('http');
 const { Server } = require("socket.io");
 const cors = require('cors');
 
+// Create Express app and HTTP server ONCE when the module loads
 const app = express();
 const server = http.createServer(app);
 
+// Configure CORS for Express app (applies to any HTTP routes if defined on 'app')
+app.use(cors({
+    origin: "*", // IMPORTANT: In production, restrict this to your Vercel frontend URL
+    methods: ["GET", "POST"]
+}));
+
+// Initialize Socket.IO and attach it to the HTTP server
+const io = new Server(server, {
+  cors: {
+    origin: "*", // IMPORTANT: In production, restrict this to your Vercel frontend URL
+    methods: ["GET", "POST"]
+  },
+  // Ensure Socket.IO uses a path that Vercel routes correctly. Default is /socket.io/
+  // path: '/socket.io/', // Usually not needed if using default and vercel.json is correct
+});
+
 // --- Word List for the Server ---
-// (Using a subset of the SGB list for brevity; in a real app, load from a file or DB)
 const SGB_WORDS = [
-    "cigar","rebut","sissy","humph","awake","blush","focal","evade","naval","serve","heath","dwarf","model","karma","stink","grade","quiet","bench","abate","feign","major","death","fresh","crust","stool","colon","abase","marry","react","batty","pride","floss","helix","croak","staff","paper","unfed","whelp","trawl","outdo","adobe","crazy","sower","repay","digit","crate","cluck","spike","mimic","pound","maxim","linen","unmet","flesh","booby","forth","first","stand","belly","ivory","seedy","print","yearn","drain","bribe","stout","panel","crass","flume","offal","agree","error","swirl","argue","bleed","delta","flick","totem","wooer","front","shrub","parry","biome","lapel","start","greet","goner","golem","lusty","loopy","round","audit","lying","gamma","labor","islet","civic","forge","corny","moult","basic","salad","agate","spicy","spray","essay","fjord","spend","kebab","guild","aback","motor","alone","hatch","hyper","thumb","dowry","ought","belch","dutch","pilot","tweed","comet","jaunt","enema","steed","abyss","growl","fling","dozen","boozy","erode","world","gouge","click","briar","great","altar","pulpy","blurt","coast","duchy","groin","fixer","group","rogue","badly","smart","pithy","gaudy","chill","heron","vodka","finer","surer","radio","rouge","perch","retch","wrote","clock","tilde","store","prove","bring","solve","cheat","grime","exult","usher","epoch","triad","break","rhino","viral","conic","masse","sonic","vital","trace","using","peach","champ","baton","brake","pluck","craze","gripe","weary","picky","acute","ferry","aside","tapir","troll","unify","rebus","boost","truss","siege","tiger","banal","slump","crank","gorge","query","drink","favor","abbey","tangy","panic","solar","shire","proxy","point","robot","prick","wince","crimp","knoll","sugar","whack","mount","perky","could","wrung","light","those","moist","shard","pleat","aloft","skill","elder","frame","humor","pause","ulcer","ultra","robin","cynic","agora","twirl","sound","overt","plant","lager","scary","sequel","meter","buddy","quack","SAUTE","LYRIC","ASCOT","FLACK","FLEEK","STUNG", "BROKE", "TWANG", "FLING", "SWILL", "BIRCH", "WOOZY"
+    "cigar","rebut","sissy","humph","awake","blush","focal","evade","naval","serve","heath","dwarf","model","karma","stink","grade","quiet","bench","abate","feign","major","death","fresh","crust","stool","colon","abase","marry","react","batty","pride","floss","helix","croak","staff","paper","unfed","whelp","trawl","outdo","adobe","crazy","sower","repay","digit","crate","cluck","spike","mimic","pound","maxim","linen","unmet","flesh","booby","forth","first","stand","belly","ivory","seedy","print","yearn","drain","bribe","stout","panel","crass","flume","offal","agree","error","swirl","argue","bleed","delta","flick","totem","wooer","front","shrub","parry","biome","lapel","start","greet","goner","golem","lusty","loopy","round","audit","lying","gamma","labor","islet","civic","forge","corny","moult","basic","salad","agate","spicy","spray","essay","fjord","spend","kebab","guild","aback","motor","alone","hatch","hyper","thumb","dowry","ought","belch","dutch","pilot","tweed","comet","jaunt","enema","steed","abyss","growl","fling","dozen","boozy","erode","world","gouge","click","briar","great","altar","pulpy","blurt","coast","duchy","groin","fixer","group","rogue","badly","smart","pithy","gaudy","chill","heron","vodka","finer","surer","radio","rouge","perch","retch","wrote","clock","tilde","store","prove","bring","solve","cheat","grime","exult","usher","epoch","triad","break","rhino","viral","conic","masse","sonic","vital","trace","using","peach","champ","baton","brake","pluck","craze","gripe","weary","picky","acute","ferry","aside","tapir","troll","unify","rebus","boost","truss","siege","tiger","banal","slump","crank","gorge","query","drink","favor","abbey","tangy","panic","solar","shire","proxy","point","robot","prick","wince","crimp","knoll","sugar","whack","mount","perky","could","wrung","light","those","moist","shard","pleat","aloft","skill","elder","frame","humor","pause","ulcer","ultra","robin","cynic","agora","twirl","sound","overt","plant","lager","scary","sequel","meter","buddy","quack","saute","lyric","ascot","flack","fleek","stung", "broke", "twang", "fling", "swill", "birch", "woozy"
 ].map(word => word.toLowerCase());
 
 
-const io = new Server(server, {
-  cors: {
-    origin: "*", // In production, restrict this to your Vercel frontend URL
-    methods: ["GET", "POST"]
-  }
-});
-
-app.use(cors()); // Enable CORS for HTTP routes if any (though socket.io handles its own)
-
 // --- In-memory data stores (Limitations apply for serverless) ---
-let searchingPlayers = []; // Array of socket objects
-let gameRooms = {}; // { roomId: { players: [{id, name, socket, finished, attempts}], word, status, winnerName } }
-let leaderboard = []; // [{ name: 'PlayerX', score: 10 }, ...]
-
+let searchingPlayers = [];
+let gameRooms = {};
+let leaderboard = [];
 const MAX_LEADERBOARD_SIZE = 10;
 
 function selectRandomWord() {
@@ -35,40 +41,59 @@ function selectRandomWord() {
 
 function updateLeaderboard(playerName) {
   if (!playerName || typeof playerName !== 'string' || playerName.trim() === '') return;
+  const trimmedPlayerName = playerName.trim();
 
-  let playerEntry = leaderboard.find(p => p.name.toLowerCase() === playerName.toLowerCase());
+  let playerEntry = leaderboard.find(p => p.name.toLowerCase() === trimmedPlayerName.toLowerCase());
   if (playerEntry) {
     playerEntry.score += 1;
   } else {
-    leaderboard.push({ name: playerName, score: 1 });
+    leaderboard.push({ name: trimmedPlayerName, score: 1 });
   }
-  leaderboard.sort((a, b) => b.score - a.score); // Sort descending
+  leaderboard.sort((a, b) => b.score - a.score);
   if (leaderboard.length > MAX_LEADERBOARD_SIZE) {
     leaderboard = leaderboard.slice(0, MAX_LEADERBOARD_SIZE);
   }
-  io.emit("leaderboardUpdate", leaderboard); // Send to all connected clients
+  io.emit("leaderboardUpdate", leaderboard);
+  console.log("Leaderboard updated:", leaderboard);
 }
 
+// --- Socket.IO Connection Logic ---
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
-  socket.emit("leaderboardUpdate", leaderboard); // Send current leaderboard on connect
+  console.log("User connected via Socket.IO:", socket.id);
+  socket.emit("leaderboardUpdate", leaderboard);
 
   socket.on("findGame", (playerName) => {
-    socket.playerName = playerName || `Guest${Math.floor(Math.random() * 1000)}`;
+    socket.playerName = (typeof playerName === 'string' && playerName.trim()) ? playerName.trim() : `Guest${Math.floor(Math.random() * 1000)}`;
     console.log(`${socket.playerName} (ID: ${socket.id}) is looking for a game.`);
 
-    // Prevent already searching player from searching again
-    if (searchingPlayers.find(p => p.id === socket.id) || Object.values(gameRooms).find(room => room.players.find(p => p.id === socket.id))) {
-        socket.emit("alreadyInGameOrSearching", { message: "You are already in a game or searching." });
-        return;
+    if (searchingPlayers.find(p => p.id === socket.id) || 
+        Object.values(gameRooms).some(room => room.players.some(p => p.id === socket.id && room.status === 'playing'))) {
+      console.log(`${socket.playerName} tried to search but is already searching or in an active game.`);
+      socket.emit("alreadyInGameOrSearching", { message: "You are already searching or in an active game." });
+      return;
     }
-
+    
+    // Remove if already in searchingPlayers (e.g. due to client refresh while searching)
+    searchingPlayers = searchingPlayers.filter(p => p.id !== socket.id);
     searchingPlayers.push(socket);
 
     if (searchingPlayers.length >= 2) {
       const player1Socket = searchingPlayers.shift();
       const player2Socket = searchingPlayers.shift();
-      const roomId = `room-${player1Socket.id}-${player2Socket.id}`;
+
+      // Ensure sockets are still valid (not disconnected while in queue)
+      if (!player1Socket || !player1Socket.connected || !player2Socket || !player2Socket.connected) {
+        console.log("One or more players disconnected while in queue. Returning remaining to queue if any.");
+        if (player1Socket && player1Socket.connected) searchingPlayers.unshift(player1Socket);
+        if (player2Socket && player2Socket.connected) searchingPlayers.unshift(player2Socket);
+        // Notify remaining players if they were returned to queue
+        if (player1Socket && player1Socket.connected && !searchingPlayers.find(p=>p.id === player1Socket.id)) player1Socket.emit("waitingForOpponent");
+        if (player2Socket && player2Socket.connected && !searchingPlayers.find(p=>p.id === player2Socket.id)) player2Socket.emit("waitingForOpponent");
+        return;
+      }
+
+
+      const roomId = `room-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
       const secretWord = selectRandomWord();
 
       const roomData = {
@@ -78,29 +103,23 @@ io.on("connection", (socket) => {
           { id: player2Socket.id, name: player2Socket.playerName, socket: player2Socket, finished: false, attempts: 0 }
         ],
         word: secretWord,
-        status: 'playing', // playing, finished
+        status: 'playing',
         winnerName: null
       };
       gameRooms[roomId] = roomData;
 
       player1Socket.join(roomId);
       player2Socket.join(roomId);
-      player1Socket.gameRoomId = roomId; // Store roomId on socket for easy access
+      player1Socket.gameRoomId = roomId;
       player2Socket.gameRoomId = roomId;
 
       console.log(`Game starting: Room ${roomId}, Word: ${secretWord}, P1: ${player1Socket.playerName}, P2: ${player2Socket.playerName}`);
       
       player1Socket.emit("gameStarted", {
-        roomId: roomId,
-        word: secretWord,
-        opponentName: player2Socket.playerName,
-        myName: player1Socket.playerName
+        roomId: roomId, word: secretWord, opponentName: player2Socket.playerName, myName: player1Socket.playerName
       });
       player2Socket.emit("gameStarted", {
-        roomId: roomId,
-        word: secretWord,
-        opponentName: player1Socket.playerName,
-        myName: player2Socket.playerName
+        roomId: roomId, word: secretWord, opponentName: player1Socket.playerName, myName: player2Socket.playerName
       });
 
     } else {
@@ -114,7 +133,7 @@ io.on("connection", (socket) => {
 
     if (room && room.status === 'playing') {
       const player = room.players.find(p => p.id === socket.id);
-      if (!player || player.finished) return; // Already finished or not in this room
+      if (!player || player.finished) return;
 
       player.finished = true;
       player.attempts = attempts;
@@ -124,15 +143,14 @@ io.on("connection", (socket) => {
       console.log(`${player.name} won in room ${roomId} with ${attempts} attempts.`);
       updateLeaderboard(player.name);
 
-      // Notify winner
       socket.emit("gameOver", { result: "win", word: room.word, message: `You guessed it in ${attempts} tries!` });
 
-      // Notify loser (the other player)
       const opponent = room.players.find(p => p.id !== socket.id);
-      if (opponent && opponent.socket) {
+      if (opponent && opponent.socket && opponent.socket.connected) {
         opponent.socket.emit("gameOver", { result: "lose", word: room.word, message: `${player.name} finished first in ${attempts} tries!` });
       }
-      // Consider cleaning up the room after a short delay or when players disconnect
+      // Consider cleaning up the room after a short delay
+      // setTimeout(() => delete gameRooms[roomId], 60000); // Clean up room after 1 minute
     }
   });
 
@@ -150,15 +168,20 @@ io.on("connection", (socket) => {
 
       const opponent = room.players.find(p => p.id !== socket.id);
 
-      // Check if opponent also finished
-      if (opponent && opponent.finished) { // Both finished, and no winner yet (meaning previous was also a fail)
-        if (!room.winnerName) { // If no one won before this player failed
+      if (opponent && opponent.finished) {
+        if (!room.winnerName) {
             room.status = 'finished';
             io.to(roomId).emit("gameOver", { result: "draw", word: room.word, message: "Neither of you got the word! It's a draw." });
+            // setTimeout(() => delete gameRooms[roomId], 60000);
         }
-      } else if (opponent) { // Opponent still playing
+      } else if (opponent && opponent.socket && opponent.socket.connected) {
         socket.emit("waitingForOpponentFinish", { word: room.word, message: "You didn't get it. Waiting for opponent..." });
         opponent.socket.emit("opponentUpdate", { message: `${player.name} has used all their attempts.` });
+      } else if (!opponent || !opponent.socket || !opponent.socket.connected) { 
+        // Opponent disconnected or invalid, this player essentially "draws" alone
+        socket.emit("gameOver", { result: "draw", word: room.word, message: "You didn't get the word, and opponent is unavailable." });
+        room.status = 'finished';
+        // setTimeout(() => delete gameRooms[roomId], 60000);
       }
     }
   });
@@ -175,52 +198,34 @@ io.on("connection", (socket) => {
       if (room.status === 'playing' && disconnectedPlayer) {
         room.status = 'finished';
         const opponent = room.players.find(p => p.id !== socket.id);
-        if (opponent && opponent.socket) {
+        if (opponent && opponent.socket && opponent.socket.connected) {
           room.winnerName = opponent.name;
           console.log(`${opponent.name} wins by default in room ${roomId} as ${disconnectedPlayer.name} disconnected.`);
           updateLeaderboard(opponent.name);
           opponent.socket.emit("gameOver", { result: "win", word: room.word, message: `${disconnectedPlayer.name} disconnected. You win!` });
         }
+        // setTimeout(() => delete gameRooms[roomId], 60000); // Clean up room
       }
-      // Potentially remove room or mark as abandoned
-      // delete gameRooms[roomId]; // This might be too soon if other player is still there
-      console.log(`Player ${socket.playerName} disconnected from room ${roomId}.`);
+      console.log(`Player ${socket.playerName || socket.id} disconnected from room ${roomId}.`);
     }
   });
 });
 
-// This is the crucial part for Vercel: export the server.
-// Vercel will use this to handle requests to `/api/socket.js`.
-// The `vercel.json` routes `/socket.io/` to this file.
-module.exports = (req, res) => {
-  // Allow Vercel to handle the HTTP server upgrade for WebSockets
-  // by not directly calling server.listen if it's already handled by Vercel's environment
-  if (!server.listening) {
-    // This is more for local development. Vercel handles the listen part.
+
+// --- Vercel Serverless Function Handler ---
+// The `server` instance (with Socket.IO attached) is already created globally.
+// Vercel will invoke this exported function for requests to /api/socket.js
+// (and requests to /socket.io/... due to the rewrite rule in vercel.json).
+// The Express app (`app`) will then route the request, and Socket.IO will
+// handle its specific handshake/communication if the request is for /socket.io/.
+module.exports = app;
+
+
+// --- Local Development Startup ---
+const IS_LOCAL_DEV = process.env.NODE_ENV !== 'production' && !process.env.VERCEL && !process.env.VERCEL_ENV;
+if (IS_LOCAL_DEV) {
     const PORT = process.env.PORT || 3001;
     server.listen(PORT, () => {
-      console.log(`Socket.IO server running locally on port ${PORT}`);
-    });
-  }
-  // Ensure the original HTTP request/response objects are passed if needed by the underlying server
-  // For Socket.IO, it primarily needs the server instance it's attached to.
-  // The Vercel Node.js runtime will manage the request lifecycle for serverless functions.
-  // If you had HTTP routes on `app`, you'd call `app(req, res)`.
-  // For just Socket.IO, often just having it attached to the server is enough.
-  // Vercel's runtime will invoke this function for requests to /api/socket.js.
-  // Socket.IO will then handle its specific /socket.io/ paths.
-  // Send a minimal response for non-Socket.IO HTTP GET requests to this path
-  if (req.method === 'GET' && !req.url.startsWith('/socket.io/')) {
-    res.setHeader('Content-Type', 'text/plain');
-    res.status(200).send('Socket.IO server is active. Connect via WebSocket.');
-    return;
-  }
-};
-
-// For local development (npm run dev or npm start)
-if (require.main === module && process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
-    const PORT = 3001;
-    server.listen(PORT, () => {
-        console.log(`DEVELOPMENT Socket.IO server listening on port ${PORT}`);
+        console.log(`DEVELOPMENT Socket.IO server listening on http://localhost:${PORT}`);
     });
 }
