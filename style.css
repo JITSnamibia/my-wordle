@@ -1,29 +1,58 @@
-/* style.css */
+/* style.css - ENHANCED VISUALS */
 body {
-    transition: background-color 0.3s, color 0.3s;
+    transition: background-color 0.4s, color 0.4s;
+    -webkit-font-smoothing: antialiased; /* Smoother fonts on WebKit */
+    -moz-osx-font-smoothing: grayscale; /* Smoother fonts on Firefox */
 }
 
-/* Game Tile Styling */
+/* Subtle page background enhancement */
+body.bg-gray-900 { /* Dark mode (Tailwind class is a fallback) */
+    background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+}
+body.light-mode { /* Light mode (Tailwind class is a fallback for body) */
+    background: linear-gradient(135deg, #f9fafb 0%, #e5e7eb 100%);
+    /* Ensure text color is dark for light mode if not covered by Tailwind contextually */
+    color: #1f2937;
+}
+
+
+header h1 {
+    /* More pronounced header text */
+    text-shadow: 0 0 5px rgba(255,255,255,0.1); /* Subtle glow in dark mode */
+}
+body.light-mode header {
+    border-color: #d1d5db; /* Tailwind gray-300 */
+}
+body.light-mode header h1 {
+    text-shadow: 0 0 5px rgba(0,0,0,0.05); /* Subtle shadow in light mode */
+}
+
+/* --- Game Tile Styling --- */
 .tile {
-    width: 56px; /* Mobile-first: 56px */
-    height: 56px;
+    width: 58px; /* Adjusted for better grid fit with gaps */
+    height: 58px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.75rem; /* Mobile-first: 1.75rem */
+    font-size: 2rem; /* Increased for impact */
     font-weight: bold;
-    border: 2px solid #4A5568; /* Tailwind gray-600 */
+    border: 2px solid; /* Border color will be set by states */
+    border-radius: 4px; /* Slightly rounded corners */
     text-transform: uppercase;
     position: relative;
     transform-style: preserve-3d;
-    transition: transform 0.6s, background-color 0.1s 0.3s, border-color 0.1s 0.3s; /* Delay color change until flip half-done */
+    transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1),
+                background-color 0.1s 0.35s, /* Delay color change for flip */
+                border-color 0.1s 0.35s,
+                box-shadow 0.3s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15); /* Subtle shadow for all tiles */
 }
 
 @media (min-width: 640px) { /* sm breakpoint in Tailwind */
     .tile {
-        width: 62px;
-        height: 62px;
-        font-size: 2rem;
+        width: 64px;
+        height: 64px;
+        font-size: 2.25rem;
     }
 }
 
@@ -37,20 +66,23 @@ body {
     align-items: center;
     justify-content: center;
     backface-visibility: hidden;
-    -webkit-backface-visibility: hidden; /* Safari */
-    border-radius: 2px; /* Consistent with potential tile rounding */
+    -webkit-backface-visibility: hidden;
+    border-radius: inherit; /* Inherit from .tile */
 }
 
 .tile .front {
     background-color: transparent;
-    color: inherit; /* Inherits from body default */
+    color: inherit; /* Inherits from body default text color */
     z-index: 2;
 }
+body.light-mode .tile .front {
+    color: #1f2937; /* Ensure front text is dark in light mode */
+}
+
 
 .tile .back {
-    /* Default back color can be transparent or match initial tile, will be overridden */
-    background-color: transparent;
-    color: white; /* Default for feedback text */
+    /* Background will be set by feedback classes */
+    color: white; /* Default for feedback text (often overridden) */
     transform: rotateX(180deg);
     z-index: 1;
 }
@@ -59,142 +91,288 @@ body {
     transform: rotateX(180deg);
 }
 
-/* Tile states BEFORE guess submission (typing) */
+/* Tile states BEFORE guess submission */
 .tile-empty {
-    background-color: transparent; /* Or use body's bg-gray-900 */
+    background-color: rgba(0,0,0,0.1); /* Darker empty slot in dark mode */
+    border-color: #374151; /* Tailwind gray-700 */
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); /* Indented look */
 }
-.tile-filled { /* When user is typing */
-    border-color: #718096; /* Tailwind gray-500 */
-    /* Animate scale slightly when a letter is added */
-    animation: pop 0.1s ease-out;
+body.light-mode .tile-empty {
+    background-color: rgba(0,0,0,0.03); /* Subtle empty slot in light mode */
+    border-color: #d1d5db; /* Tailwind gray-300 */
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.08);
 }
 
-@keyframes pop {
+.tile-filled { /* When user is typing */
+    border-color: #6b7280; /* Tailwind gray-500 */
+    background-color: transparent; /* Let front face show letter clearly */
+    animation: pop 0.15s ease-out; /* Pop animation for typed letter */
+}
+body.light-mode .tile-filled {
+    border-color: #9ca3af; /* Tailwind gray-400 */
+}
+
+@keyframes pop { /* Subtle scale animation when a letter is typed */
     0% { transform: scale(1); }
-    50% { transform: scale(1.1); }
+    70% { transform: scale(1.12); }
     100% { transform: scale(1); }
 }
 
 
 /* Tile states AFTER guess submission (feedback) */
-/* These classes are applied to the .tile container and the .back face */
 .tile-correct, .back.tile-correct {
-    background-color: #48BB78; /* Tailwind green-500 */
-    border-color: #48BB78;
-    color: white !important; /* Ensure text is white */
+    background-color: #10B981; /* Tailwind green-500 (slightly adjusted) */
+    border-color: #059669; /* Darker green for border */
+    color: white !important;
+    box-shadow: 0 3px 6px rgba(16, 185, 129, 0.25); /* Glow effect */
 }
 .tile-present, .back.tile-present {
-    background-color: #ECC94B; /* Tailwind yellow-500 */
-    border-color: #ECC94B;
+    background-color: #F59E0B; /* Tailwind amber-500 (vibrant yellow/orange) */
+    border-color: #D97706; /* Darker amber for border */
     color: white !important;
+    box-shadow: 0 3px 6px rgba(245, 158, 11, 0.25);
 }
 .tile-absent, .back.tile-absent {
-    background-color: #718096; /* Tailwind gray-500 */
-    border-color: #718096;
-    color: white !important;
+    background-color: #4B5563; /* Tailwind gray-600 (darker absent) */
+    border-color: #374151; /* Darker gray for border */
+    color: #D1D5DB !important; /* Lighter gray text for contrast */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
+/* Light theme overrides for feedback tiles */
+body.light-mode .tile-correct, body.light-mode .back.tile-correct {
+    background-color: #22C55E; /* Tailwind green-500 (vibrant in light) */
+    border-color: #15803D;
+    color: white !important;
+    box-shadow: 0 3px 6px rgba(34, 197, 94, 0.2);
+}
+body.light-mode .tile-present, body.light-mode .back.tile-present {
+    background-color: #FBBF24; /* Tailwind amber-400 */
+    border-color: #F59E0B;
+    color: #422006 !important; /* Dark text for better contrast on light yellow */
+    box-shadow: 0 3px 6px rgba(251, 191, 36, 0.2);
+}
+body.light-mode .tile-absent, body.light-mode .back.tile-absent {
+    background-color: #9CA3AF; /* Tailwind gray-400 */
+    border-color: #6B7280;
+    color: white !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
 
-/* Keyboard Key Styling */
+/* --- Keyboard Key Styling --- */
 .key {
-    height: 48px; /* Mobile-first */
-    min-width: 28px; /* For thin letters */
-    padding: 0 8px; /* Mobile-first */
-    margin: 2px;
-    border-radius: 4px;
-    background-color: #A0AEC0; /* Tailwind gray-400 */
-    color: #1A202C; /* Tailwind gray-900 for contrast */
+    height: 50px;
+    min-width: 30px;
+    padding: 0 10px;
+    margin: 2px 3px; /* Added horizontal margin */
+    border-radius: 6px; /* More rounded */
+    background-color: #6B7280; /* Tailwind gray-500 (darker base) */
+    color: #F3F4F6; /* Tailwind gray-100 (lighter text) */
     font-weight: bold;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background-color 0.2s, color 0.2s;
+    transition: background-color 0.2s, color 0.2s, transform 0.1s, box-shadow 0.2s;
     text-transform: uppercase;
-    font-size: 0.8rem; /* Mobile */
+    font-size: 0.85rem;
+    border: none; /* Remove default border */
+    border-bottom: 3px solid #4B5563; /* Subtle 3D effect */
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
-@media (min-width: 640px) { /* sm */
+@media (min-width: 640px) {
     .key {
-        height: 52px;
-        min-width: 35px;
-        padding: 0 12px;
+        height: 56px;
+        min-width: 40px;
+        padding: 0 14px;
         font-size: 1rem;
+        margin: 3px 4px;
     }
 }
 
 .key:hover {
-    background-color: #CBD5E0; /* Tailwind gray-300 */
+    background-color: #9CA3AF; /* Tailwind gray-400 */
+    transform: translateY(-2px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.25);
 }
-.key.special-key { /* For Enter and Backspace */
-    min-width: 40px; /* Mobile */
-    padding: 0 10px; /* Mobile */
-    font-size: 0.7rem; /* Mobile */
+.key:active {
+    background-color: #4B5563; /* Tailwind gray-600 */
+    transform: translateY(0px); /* Press down effect */
+    border-bottom-width: 1px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
 }
-@media (min-width: 640px) { /* sm */
+
+.key.special-key {
+    min-width: 45px;
+    padding: 0 10px;
+    font-size: 0.75rem;
+    /* flex-grow is handled in JS for specific keys if needed, or can be general */
+}
+@media (min-width: 640px) {
     .key.special-key {
-        min-width: 60px;
-        padding: 0 12px;
-        font-size: 0.85rem;
+        min-width: 65px;
+        padding: 0 14px;
+        font-size: 0.9rem;
     }
 }
 
 /* Keyboard key feedback colors */
-.key.key-correct { background-color: #48BB78; color: white; }
-.key.key-present { background-color: #ECC94B; color: white; }
-.key.key-absent { background-color: #718096; color: white; }
+.key.key-correct { background-color: #10B981 !important; border-bottom-color: #059669 !important; color: white !important; }
+.key.key-present { background-color: #F59E0B !important; border-bottom-color: #D97706 !important; color: white !important; }
+.key.key-absent { background-color: #374151 !important; border-bottom-color: #1F2937 !important; color: #9CA3AF !important; }
 
-
-/* Shake Animation for invalid input on a row */
-.shake {
-    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-}
-@keyframes shake {
-    10%, 90% { transform: translateX(-1px); }
-    20%, 80% { transform: translateX(2px); }
-    30%, 50%, 70% { transform: translateX(-4px); }
-    40%, 60% { transform: translateX(4px); }
-}
-
-/* Light Theme */
-body.light-mode {
-    background-color: #F7FAFC; /* Tailwind gray-100 */
-    color: #1A202C; /* Tailwind gray-900 */
-}
-body.light-mode header { border-color: #E2E8F0; /* Tailwind gray-300 */ }
-body.light-mode .tile { border: 2px solid #CBD5E0; /* gray-300 */ color: #1A202C; }
-body.light-mode .tile .front { color: #1A202C; } /* Text color for front tile in light mode */
-
-body.light-mode .tile-filled { border-color: #A0AEC0; /* Tailwind gray-400 */ }
-
-body.light-mode .tile-correct, body.light-mode .back.tile-correct {
-    background-color: #68D391; /* Tailwind green-400 */
-    border-color: #68D391;
-    color: white !important;
-}
-body.light-mode .tile-present, body.light-mode .back.tile-present {
-    background-color: #F6E05E; /* Tailwind yellow-400 */
-    border-color: #F6E05E;
-    color: #2D3748 !important; /* Darker text for light yellow */
-}
-body.light-mode .tile-absent, body.light-mode .back.tile-absent {
-    background-color: #A0AEC0; /* Tailwind gray-400 */
-    border-color: #A0AEC0;
-    color: white !important;
-}
-
+/* Light theme keyboard */
 body.light-mode .key {
-    background-color: #E2E8F0; /* Tailwind gray-200 */
-    color: #2D3748; /* Tailwind gray-700 */
+    background-color: #D1D5DB; /* Tailwind gray-300 */
+    color: #374151; /* Tailwind gray-700 */
+    border-bottom-color: #9CA3AF; /* gray-400 */
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
 }
-body.light-mode .key:hover { background-color: #CBD5E0; /* Tailwind gray-300 */ }
+body.light-mode .key:hover {
+    background-color: #E5E7EB; /* gray-200 */
+    transform: translateY(-2px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.12);
+}
+body.light-mode .key:active {
+    background-color: #BCC1C9; /* Slightly darker than hover */
+    transform: translateY(0px);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.15);
+}
 
-body.light-mode .key.key-correct { background-color: #68D391; color: white; }
-body.light-mode .key.key-present { background-color: #F6E05E; color: #2D3748; }
-body.light-mode .key.key-absent { background-color: #A0AEC0; color: white; }
+body.light-mode .key.key-correct { background-color: #22C55E !important; border-bottom-color: #16A34A !important; color: white !important; }
+body.light-mode .key.key-present { background-color: #FBBF24 !important; border-bottom-color: #F59E0B !important; color: #422006 !important; } /* Dark text for contrast */
+body.light-mode .key.key-absent { background-color: #6B7280 !important; border-bottom-color: #4B5563 !important; color: #E5E7EB !important; }
 
-body.light-mode #game-over-modal .bg-gray-800 { background-color: #EDF2F7; /* Tailwind gray-200 */ }
-body.light-mode #game-over-modal .text-red-400 { color: #E53E3E; /* Tailwind red-600 */ }
-body.light-mode footer { color: #4A5568; /* Tailwind gray-600 */ }
-body.light-mode #theme-toggle { background-color: #E2E8F0; color: #2D3748; }
-body.light-mode #theme-toggle:hover { background-color: #CBD5E0; }
-body.light-mode #error-message { color: #C53030; /* Tailwind red-700 for better contrast in light mode */ }
+/* --- Shake Animation --- */
+#game-board > div.shake { /* Target direct children of game-board that are rows */
+    animation: shakeRow 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+@keyframes shakeRow { /* Row shake */
+    10%, 90% { transform: translateX(-2px); }
+    20%, 80% { transform: translateX(3px); }
+    30%, 50%, 70% { transform: translateX(-5px); }
+    40%, 60% { transform: translateX(5px); }
+}
+
+/* --- Modal Styling --- */
+#game-over-modal {
+    transition: opacity 0.3s ease-in-out; /* For the backdrop */
+}
+#game-over-modal > div { /* The direct child panel */
+    border-radius: 12px; /* Softer corners */
+    animation: zoomIn 0.4s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
+}
+/* Dark mode modal panel (Tailwind class .bg-gray-800) */
+#game-over-modal .bg-gray-800 { /* Targeting the specific class from HTML */
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05);
+}
+/* Light mode modal panel */
+body.light-mode #game-over-modal > div {
+    background-color: #FFFFFF;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05);
+    color: #1f2937; /* Dark text */
+}
+body.light-mode #game-over-modal #secret-word-reveal {
+    color: #065f46; /* Dark green for revealed word in light mode */
+}
+body.light-mode #game-over-modal #game-over-title {
+    color: #111827; /* Almost black for title */
+}
+body.light-mode #game-over-modal #stats-display p {
+    color: #4b5563; /* gray-600 for stats text */
+}
+body.light-mode #game-over-modal #stats-display span {
+    color: #1f2937; /* gray-800 for stat values */
+}
+
+
+@keyframes zoomIn {
+    0% { opacity: 0; transform: scale(0.9); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+/* --- Footer and Theme Toggle --- */
+body.light-mode footer {
+    color: #4b5563; /* gray-600 */
+}
+footer #theme-toggle {
+    border-radius: 6px;
+    font-weight: 500;
+    transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
+    padding: 8px 14px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+footer #theme-toggle:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+footer #theme-toggle:active {
+    transform: translateY(0px);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+}
+
+body.light-mode #theme-toggle {
+    background-color: #E5E7EB; /* gray-200 */
+    color: #374151; /* gray-700 */
+}
+body.light-mode #theme-toggle:hover {
+    background-color: #D1D5DB; /* gray-300 */
+}
+
+
+/* --- Error Messages & Info Styling --- */
+#error-message-container {
+    min-height: 3rem; /* Ensure space is reserved */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#error-message { /* This is the <p> tag */
+    padding: 8px 16px;
+    border-radius: 6px;
+    display: inline-block; /* So it only takes width of message */
+    font-weight: 500;
+    opacity: 0; /* Start hidden, animation brings it in */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    /* transition for removal if not animated out */
+    transition: opacity 0.3s ease-out;
+}
+#error-message.show { /* Class to trigger animation */
+    animation: fadeInOut 2.5s ease-in-out forwards;
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; transform: translateY(-10px); }
+    15% { opacity: 1; transform: translateY(0); } /* Faster fade in */
+    85% { opacity: 1; transform: translateY(0); } /* Hold */
+    100% { opacity: 0; transform: translateY(-10px); } /* Fade out */
+}
+
+/* Message Styling Classes (to be applied by JS) */
+.error-text-dark { color: #FCA5A5; background-color: rgba(153, 27, 27, 0.5); } /* red-300 text, darker red bg */
+.info-text-dark { color: #93C5FD; background-color: rgba(30, 64, 175, 0.5); } /* blue-300 text, darker blue bg */
+
+.error-text-light { color: #B91C1C; background-color: rgba(252, 165, 165, 0.6); } /* red-700 text, lighter red bg */
+.info-text-light { color: #1D4ED8; background-color: rgba(147, 197, 253, 0.6); } /* blue-700 text, lighter blue bg */
+
+
+/* Add winning row animation */
+.winning-row .tile { /* Tiles in the winning row */
+    animation: bounce 0.6s ease-out forwards;
+    /* Ensure feedback color remains, bounce animation only affects transform */
+}
+/* Stagger the bounce animation for each tile in the winning row */
+.winning-row .tile:nth-child(1) { animation-delay: 0.0s; }
+.winning-row .tile:nth-child(2) { animation-delay: 0.1s; }
+.winning-row .tile:nth-child(3) { animation-delay: 0.2s; }
+.winning-row .tile:nth-child(4) { animation-delay: 0.3s; }
+.winning-row .tile:nth-child(5) { animation-delay: 0.4s; }
+
+@keyframes bounce {
+    0%   { transform: translateY(0) rotateX(180deg); } /* Maintain flip state */
+    20%  { transform: translateY(0) rotateX(180deg); }
+    40%  { transform: translateY(-25px) rotateX(180deg); }
+    60%  { transform: translateY(0) rotateX(180deg); }
+    80%  { transform: translateY(-10px) rotateX(180deg); }
+    100% { transform: translateY(0) rotateX(180deg); }
+}
