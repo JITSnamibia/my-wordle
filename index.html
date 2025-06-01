@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wordle Unlimited</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-between min-h-screen font-sans p-4">
+
+    <header class="border-b border-gray-700 pb-4 mb-6 md:mb-8 text-center w-full max-w-md">
+        <h1 class="text-4xl font-bold tracking-wider">WORDLE UNLIMITED</h1>
+    </header>
+
+    <main id="game-container" class="flex flex-col items-center w-full">
+        <div id="error-message-container" class="mb-2 h-10 text-center w-full max-w-md">
+            <p id="error-message" class="text-red-400 font-medium"></p>
+            <button id="retry-fetch-button" class="hidden bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mt-1">Retry Fetch</button>
+        </div>
+
+        <div id="game-board" class="grid grid-rows-6 gap-1.5 mb-6 md:mb-8">
+            </div>
+
+        <div id="keyboard" class="flex flex-col items-center w-full max-w-lg">
+            </div>
+
+        <div id="game-over-modal" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-50">
+            <div class="bg-gray-800 p-6 sm:p-8 rounded-lg shadow-xl text-center w-full max-w-sm">
+                <h2 id="game-over-title" class="text-2xl sm:text-3xl font-bold mb-3"></h2>
+                <p id="game-over-message" class="mb-2 text-base sm:text-lg"></p>
+                <p id="secret-word-reveal" class="mb-5 text-lg sm:text-xl font-semibold"></p>
+                <div id="stats-display" class="mb-5 text-sm sm:text-base">
+                    <p>Games Played: <span id="games-played-stat">0</span></p>
+                    <p>Win %: <span id="win-percentage-stat">0</span></p>
+                    <p>Current Streak: <span id="current-streak-stat">0</span></p>
+                    <p>Max Streak: <span id="max-streak-stat">0</span></p>
+                </div>
+                <button id="play-again-button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2.5 px-5 sm:py-3 sm:px-6 rounded text-base sm:text-lg">Play Again</button>
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-8 py-4 text-center text-sm text-gray-500 w-full">
+        <div class="mb-2">
+            <button id="theme-toggle" class="px-3 py-1.5 rounded-md bg-gray-700 hover:bg-gray-600 text-xs">Light Mode</button>
+        </div>
+        <p>Play unlimited Wordle puzzles!</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

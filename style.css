@@ -1,0 +1,200 @@
+/* style.css */
+body {
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* Game Tile Styling */
+.tile {
+    width: 56px; /* Mobile-first: 56px */
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem; /* Mobile-first: 1.75rem */
+    font-weight: bold;
+    border: 2px solid #4A5568; /* Tailwind gray-600 */
+    text-transform: uppercase;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.6s, background-color 0.1s 0.3s, border-color 0.1s 0.3s; /* Delay color change until flip half-done */
+}
+
+@media (min-width: 640px) { /* sm breakpoint in Tailwind */
+    .tile {
+        width: 62px;
+        height: 62px;
+        font-size: 2rem;
+    }
+}
+
+.tile .front, .tile .back {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden; /* Safari */
+    border-radius: 2px; /* Consistent with potential tile rounding */
+}
+
+.tile .front {
+    background-color: transparent;
+    color: inherit; /* Inherits from body default */
+    z-index: 2;
+}
+
+.tile .back {
+    /* Default back color can be transparent or match initial tile, will be overridden */
+    background-color: transparent;
+    color: white; /* Default for feedback text */
+    transform: rotateX(180deg);
+    z-index: 1;
+}
+
+.tile.flip {
+    transform: rotateX(180deg);
+}
+
+/* Tile states BEFORE guess submission (typing) */
+.tile-empty {
+    background-color: transparent; /* Or use body's bg-gray-900 */
+}
+.tile-filled { /* When user is typing */
+    border-color: #718096; /* Tailwind gray-500 */
+    /* Animate scale slightly when a letter is added */
+    animation: pop 0.1s ease-out;
+}
+
+@keyframes pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+
+/* Tile states AFTER guess submission (feedback) */
+/* These classes are applied to the .tile container and the .back face */
+.tile-correct, .back.tile-correct {
+    background-color: #48BB78; /* Tailwind green-500 */
+    border-color: #48BB78;
+    color: white !important; /* Ensure text is white */
+}
+.tile-present, .back.tile-present {
+    background-color: #ECC94B; /* Tailwind yellow-500 */
+    border-color: #ECC94B;
+    color: white !important;
+}
+.tile-absent, .back.tile-absent {
+    background-color: #718096; /* Tailwind gray-500 */
+    border-color: #718096;
+    color: white !important;
+}
+
+
+/* Keyboard Key Styling */
+.key {
+    height: 48px; /* Mobile-first */
+    min-width: 28px; /* For thin letters */
+    padding: 0 8px; /* Mobile-first */
+    margin: 2px;
+    border-radius: 4px;
+    background-color: #A0AEC0; /* Tailwind gray-400 */
+    color: #1A202C; /* Tailwind gray-900 for contrast */
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+    text-transform: uppercase;
+    font-size: 0.8rem; /* Mobile */
+}
+@media (min-width: 640px) { /* sm */
+    .key {
+        height: 52px;
+        min-width: 35px;
+        padding: 0 12px;
+        font-size: 1rem;
+    }
+}
+
+.key:hover {
+    background-color: #CBD5E0; /* Tailwind gray-300 */
+}
+.key.special-key { /* For Enter and Backspace */
+    min-width: 40px; /* Mobile */
+    padding: 0 10px; /* Mobile */
+    font-size: 0.7rem; /* Mobile */
+}
+@media (min-width: 640px) { /* sm */
+    .key.special-key {
+        min-width: 60px;
+        padding: 0 12px;
+        font-size: 0.85rem;
+    }
+}
+
+/* Keyboard key feedback colors */
+.key.key-correct { background-color: #48BB78; color: white; }
+.key.key-present { background-color: #ECC94B; color: white; }
+.key.key-absent { background-color: #718096; color: white; }
+
+
+/* Shake Animation for invalid input on a row */
+.shake {
+    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+@keyframes shake {
+    10%, 90% { transform: translateX(-1px); }
+    20%, 80% { transform: translateX(2px); }
+    30%, 50%, 70% { transform: translateX(-4px); }
+    40%, 60% { transform: translateX(4px); }
+}
+
+/* Light Theme */
+body.light-mode {
+    background-color: #F7FAFC; /* Tailwind gray-100 */
+    color: #1A202C; /* Tailwind gray-900 */
+}
+body.light-mode header { border-color: #E2E8F0; /* Tailwind gray-300 */ }
+body.light-mode .tile { border: 2px solid #CBD5E0; /* gray-300 */ color: #1A202C; }
+body.light-mode .tile .front { color: #1A202C; } /* Text color for front tile in light mode */
+
+body.light-mode .tile-filled { border-color: #A0AEC0; /* Tailwind gray-400 */ }
+
+body.light-mode .tile-correct, body.light-mode .back.tile-correct {
+    background-color: #68D391; /* Tailwind green-400 */
+    border-color: #68D391;
+    color: white !important;
+}
+body.light-mode .tile-present, body.light-mode .back.tile-present {
+    background-color: #F6E05E; /* Tailwind yellow-400 */
+    border-color: #F6E05E;
+    color: #2D3748 !important; /* Darker text for light yellow */
+}
+body.light-mode .tile-absent, body.light-mode .back.tile-absent {
+    background-color: #A0AEC0; /* Tailwind gray-400 */
+    border-color: #A0AEC0;
+    color: white !important;
+}
+
+body.light-mode .key {
+    background-color: #E2E8F0; /* Tailwind gray-200 */
+    color: #2D3748; /* Tailwind gray-700 */
+}
+body.light-mode .key:hover { background-color: #CBD5E0; /* Tailwind gray-300 */ }
+
+body.light-mode .key.key-correct { background-color: #68D391; color: white; }
+body.light-mode .key.key-present { background-color: #F6E05E; color: #2D3748; }
+body.light-mode .key.key-absent { background-color: #A0AEC0; color: white; }
+
+body.light-mode #game-over-modal .bg-gray-800 { background-color: #EDF2F7; /* Tailwind gray-200 */ }
+body.light-mode #game-over-modal .text-red-400 { color: #E53E3E; /* Tailwind red-600 */ }
+body.light-mode footer { color: #4A5568; /* Tailwind gray-600 */ }
+body.light-mode #theme-toggle { background-color: #E2E8F0; color: #2D3748; }
+body.light-mode #theme-toggle:hover { background-color: #CBD5E0; }
+body.light-mode #error-message { color: #C53030; /* Tailwind red-700 for better contrast in light mode */ }
